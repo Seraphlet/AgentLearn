@@ -15,6 +15,8 @@
     { "module": "tools.weather", "class": "WeatherTool" },
     { "module": "tools.calculator", "class": "CalculatorTool" },
     { "module": "tools.save_preference", "class": "SavePreferenceTool" },
-    { "module": "tools.recall_memory", "class": "RecallMemoryTool" }
+    { "module": "tools.recall_memory", "class": "RecallMemoryTool" },
+    {"module": "tools.websearch_tool.py","class": "WebsearchTool"}
   ]
+
 }
