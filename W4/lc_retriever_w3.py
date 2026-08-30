@@ -25,9 +25,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
+from dotenv import load_dotenv, find_dotenv
+from pathlib import Path
+project_root = Path(__file__).resolve().parent.parent   # tools/ 的上级 = 项目根
+load_dotenv(project_root / ".env", override=True)      # ② 强制覆盖系统环境变量！
 model=ChatOpenAI(
     model="deepseek-v4-flash",
     api_key=os.getenv("DEEPSEEK_API_KEY"),
@@ -39,6 +40,8 @@ prompt=ChatPromptTemplate.from_template(
 )
 
 def _ftm(docs):
+    if not docs:
+        return "未找到相关历史信息"
     return "\n".join(d.page_content for d in docs)
 
 chain =(
@@ -51,3 +54,4 @@ chain =(
 q="用户喜欢什么模型，预算多少？"
 print("问：",q)
 print("答：",chain.invoke(q))
+
