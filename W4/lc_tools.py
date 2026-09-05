@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, ToolMessage
+from langchain.tools.retriever import create_retriever_tool
 
 load_dotenv()
 
@@ -25,11 +26,13 @@ model=ChatOpenAI(
 ).bind_tools(tools)
 
 # 手写工具调用循环（ W2 的 fc_loop）
-def _flatten_args(args: dict) -> dict:
+
+def _normalize_args(args: dict) -> dict:
     """解嵌套：{'city': {'city': '北京'}} → {'city': '北京'}"""
     for k, v in list(args.items()):
-        if isinstance(v, dict) and k in v and len(v) == 1:
-            args[k] = v[k]        # 只解开"外层键名=内层键名"的一层
+        while isinstance(v, dict) and v:
+            v = next(iter(v.values()))  
+        args[k] = v
     return args
 
 def run(query: str, verbose: bool = True):
@@ -44,9 +47,9 @@ def run(query: str, verbose: bool = True):
         if verbose:
             print(f"\n[第{round}轮] 模型发起 {len(ai.tool_calls)} 个工具调用:")
             for call in ai.tool_calls:
-                print(f"  工具: {call['name']}  参数: {call['args']}  解析后: {_flatten_args(call["args"])}")
+                print(f"  工具: {call['name']}  参数: {call['args']}  解析后: {_normalize_args(call["args"])}")
         for call in ai.tool_calls:
-            args=_flatten_args(call["args"])
+            args=_normalize_args(call["args"])
             result=tools_by_name[call["name"]].invoke(args)
             messages.append(ToolMessage(content=str(result),tool_call_id=call["id"]))
 
