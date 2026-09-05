@@ -42,9 +42,11 @@ def fc_loop(user_input,max_runs=3):
             print("无法打印")
         if not msg.tool_calls:
             return msg.content
+        #Sprint(msg)
         messages.append(msg)
         for tc in msg.tool_calls:
             #result=get_weather(**json.loads(tc.function.arguments))
+            #print(tc)
             try:
                 arg=json.loads(tc.function.arguments)
             except Exception as e:
