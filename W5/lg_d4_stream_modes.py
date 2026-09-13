@@ -24,7 +24,7 @@ def multiply(a: int, b: int) -> int:
 tools=[add,multiply]
 
 llm=ChatOpenAI(
-    model="deepseek-chat",
+    model="deepseek-v4-flash",
     base_url="https://api.deepseek.com",
     api_key=os.getenv("DEEPSEEK_API_KEY"),
 )

@@ -33,7 +33,7 @@ def recall_long_term(query: str)->str:
     return "\n".join(hits) if hits else "(长期记忆中没有相关内容)"
 
 llm = ChatOpenAI(
-    model="deepseek-chat",
+    model="deepseek-v4-flash",
     base_url="https://api.deepseek.com",
     api_key=os.getenv("DEEPSEEK_API_KEY"),
 )

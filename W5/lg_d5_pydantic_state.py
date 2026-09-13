@@ -59,7 +59,7 @@ def getweather(city: str) -> str:
     return f"{city}:🌤晴，25 ℃"
 
 llm = ChatOpenAI(
-    model="deepseek-chat",
+    model="deepseek-v4-flash",
     base_url="https://api.deepseek.com",
     api_key=os.getenv("DEEPSEEK_API_KEY"),
 )
