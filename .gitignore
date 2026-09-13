@@ -9,12 +9,13 @@ __pycache__/
 .venv/
 venv/
 
-# 记忆存储（运行时生成的二进制，禁止提交）
+# 记忆存储（运行时生成的数据，禁止提交）
 mem_store/
 *.db
 *.sqlite3
 *.sqlite
 facts.json
+*_mem.json
 
 # WorkBuddy 项目数据目录（含记忆/日志/设置，禁止提交）
 .workbuddy/
