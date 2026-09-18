@@ -19,3 +19,7 @@ facts.json
 
 # WorkBuddy 项目数据目录（含记忆/日志/设置，禁止提交）
 .workbuddy/
+
+# 审计日志（跑测试/诊断时生成，禁止提交）
+audit.jsonl
+*_audit.jsonl
