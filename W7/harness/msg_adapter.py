@@ -14,8 +14,7 @@
 """
 from __future__ import annotations
 
-from numpy.char import rsplit
-#   按"词干前缀"匹配, 不用穷举别名表。
+#   ★ 角色归一化: 按"词干前缀"匹配, 不用穷举别名表。
 #   教训: 第一版我手写 {"humanmessage": "user", "aichatmessage": "assistant", ...},
 #         结果漏了 "aimessage" -> AIMessage 被映射成 'aimessage' 而不是 'assistant'。
 #         穷举别名表必然漏 —— 改成前缀匹配, 这一类漏就结构性消失了。
@@ -56,7 +55,7 @@ def norm_role(raw) ->str:
         return "?"
     s=str(raw)
     if "." in s or "<" in s:
-        s=rsplit(".",1)[-1].strip("'>")
+        s=s.rsplit(".",1)[-1].strip("'>")   # ★ 是 str 的方法, 不是 numpy.char.rsplit 的函数
     s = s.lower()
     if s in ROLE_ALIASES:
         return ROLE_ALIASES[s]
@@ -105,6 +104,12 @@ def to_lc(d: dict, *, HumanMessage=None, AIMessage=None,
     content = d.get("content", "")
     kw = {"name": d["name"]} if d.get("name") else {}
 
+    # ★ 注入的类是 None 就当场说清楚"忘了传", 而不是 'NoneType' object is not callable
+    cls = {"user": HumanMessage, "system": SystemMessage,
+           "tool": ToolMessage}.get(role, AIMessage)
+    if cls is None:
+        raise TypeError(f"to_lc: role={role!r} 需要对应的消息类, 但调用方没有注入它")
+
     if role == "user":
         return HumanMessage(content=content, **kw)
     if role == "system":
@@ -136,3 +141,29 @@ def drop_orphan_tool_results(msgs: list) -> tuple[list, int]:
             continue
         out.append(m)
     return out, dropped
+
+
+if __name__ == "__main__":
+    # 冒烟自测(不连网): python msg_adapter.py
+    from langchain_core.messages import (HumanMessage as H, AIMessage as A,
+                                         SystemMessage as S)
+    assert normalize([H(content="hi"), A(content="yo")]) == [
+        {"role": "user", "content": "hi"}, {"role": "assistant", "content": "yo"}]
+    # 类名 / 类 repr 两种写法都要认出来(这一支以前会被 numpy 的 rsplit 炸掉)
+    assert norm_role(repr(H)) == "user"
+    assert norm_role("HumanMessage") == "user"
+    assert norm_role(A(content="x").type) == "assistant"
+    assert norm_role(None) == "?"
+    # 内部 dict -> LC 对象, 角色别名必须转回来
+    assert to_lc({"role": "user", "content": "x"}, HumanMessage=H).type == "human"
+    assert to_lc({"role": "assistant", "content": "x"}, AIMessage=A).type == "ai"
+    assert to_lc({"role": "system", "content": "x"}, SystemMessage=S).type == "system"
+    # 成对性最后一道防线: 孤儿 tool 结果必须被丢掉
+    kept, dropped = drop_orphan_tool_results([
+        {"role": "assistant", "content": "",
+         "tool_calls": [{"id": "1", "name": "t", "args": {}}]},
+        {"role": "tool", "tool_call_id": "1", "content": "ok"},
+        {"role": "tool", "tool_call_id": "9", "content": "孤儿"},
+    ])
+    assert dropped == 1 and len(kept) == 2
+    print("msg_adapter OK")

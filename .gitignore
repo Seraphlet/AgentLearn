@@ -23,3 +23,8 @@ facts.json
 # 审计日志（跑测试/诊断时生成，禁止提交）
 audit.jsonl
 *_audit.jsonl
+audit.log
+
+# Harness 运行时产物（跑 writer_pipeline 时生成，禁止提交）
+*_sessions.jsonl
+*_trace.jsonl

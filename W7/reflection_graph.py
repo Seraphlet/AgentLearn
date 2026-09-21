@@ -26,14 +26,13 @@ MODEL_NAME = "deepseek-v4-flash"
 BASE_URL = "https://api.deepseek.com"
 API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
-MODE = sys.argv[1] if len(sys.argv) > 1 else "normal"
+# ★ 只在自己跑的时候才认 argv —— 否则被 import 时会吃掉调用方的 sys.argv[1]
+MODE = (sys.argv[1] if (__name__ == "__main__" and len(sys.argv) > 1)
+        else os.getenv("W7_REFLECTION_MODE", "normal"))
 FORCED = (MODE == "forced")
 PASS_SCORE = 11 if MODE == "forced" else 8   # ★ 8 是拍的(待校准); forced 用 11 保证永不达标
 MAX_REVISE = 3                               # ★ 3 也是拍的(成本上限)
 STALL_STOP = (not FORCED) and (os.getenv("STALL", "1") != "0") # 停滞检测开关
-print(f"=== MODE={MODE} PASS_SCORE={PASS_SCORE} MAX_REVISE={MAX_REVISE} "
-      f"STALL_STOP={STALL_STOP}"
-      + ("  ← forced: 停滞出口已自动关闭, 本次只测『次数用尽』" if FORCED else ""))
 llm = ChatOpenAI(model=MODEL_NAME, base_url=BASE_URL,
                  api_key=API_KEY, temperature=0)
 
@@ -53,6 +52,8 @@ class RState(MessagesState):
     draft: str
     score: int
     issues: list[str]
+    # ★ 硬伤通道: 没有它, route_after_critic 里的 fatal 判断永远是空的(死代码)
+    fatal_issues: list[str]
     revise_count: int
     # ★ 每轮评审轨迹(operator.add = 追加, 不是覆盖)
     trajectory: Annotated[list, operator.add]
@@ -66,7 +67,8 @@ def generator(state: RState) ->dict:
     r = llm.invoke(f"请写一篇约200字的中文短文，主题：{state['topic']}。只输出正文。")
     draft =str(r.content)
     print(f"[generator]初稿 {len(draft)}字")
-    return {"draft": draft,"revise_count":0,"best_draft":draft,"best_score":0}
+    return {"draft": draft,"revise_count":0,"best_draft":draft,"best_score":0,
+            "fatal_issues":[]}
 
 
 # ★ json_mode: 唯一在你环境可用的方式; prompt 里必须有 "JSON"
@@ -118,6 +120,7 @@ def critic(state:RState) ->dict:
           f" / 程序判定 {'达标' if passed_by_code else '未达标'}")
     return {"score": score, "issues": c.issues, "trajectory": [entry],
             "best_score": best_score, "best_draft": best_draft,
+            "fatal_issues": c.fatal_issues,
             "messages": [("assistant", f"[评审] {score} 分 | 问题: {c.issues}")]}
 def reviser(state: RState) -> dict:
     """按评审意见重写(只带原稿 + 意见, 不带全历史 → 省 token)"""
@@ -178,7 +181,9 @@ def stop_reason(out):
 def main():
     graph = build_graph() 
     print(f"=== 开始跑 (MODE={MODE}, PASS_SCORE={PASS_SCORE}, "
-          f"MAX_REVISE={MAX_REVISE}, STALL_STOP={STALL_STOP}) ===\n")
+          f"MAX_REVISE={MAX_REVISE}, STALL_STOP={STALL_STOP}) ==="
+          + ("  ← forced: 停滞出口已自动关闭, 本次只测『次数用尽』" if FORCED else "")
+          + "\n")
     # 一次运行同时拿链和终态 —— 不做跨运行对比
     chain,final_state =[],None
     for mode,chunk in graph.stream(INITIAL,stream_mode=["updates","values"]):
