@@ -86,8 +86,16 @@ def get_embeddings(kind: str) ->Embeddings:
         )
     raise ValueError(f"未知 embed 类型: {kind}")
 
-
+INFO_FILE = HERE / "chroma_db.index.json"     # ★ 放在 chroma_db 旁边, 别放进去
+import json
 # ===================== 工具 =====================
+def read_info() -> dict:
+    if INFO_FILE.exists():
+        try:
+            return json.loads(INFO_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
 def clean_meta(m: dict) -> dict:
     """Chroma 只收 str/int/float/bool。list/dict/None 会被拒 —— 入库前洗一遍。"""
     return {k: v for k, v in m.items() if isinstance(v, (str, int, float, bool))}
