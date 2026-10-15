@@ -1,3 +1,4 @@
+#今天代码和前几天接口没对上，暂时不修，今天核心是学习 dense()、sparse_search()、rrf_fuse()、hybrid()
 """
 W8-Day4  混合检索: Dense(向量) + Sparse(BM25) + RRF 融合
 ================================================================
@@ -70,11 +71,11 @@ class SparseIndex:
     """BM25 倒排索引。k1/b 是 BM25 的两个超参(⚠️ 按 rank_bm25 默认值)。
     """
     def __init__(self,ids,texts,tokenizer,k1:float=1.5,b:float=0.75):
-        from rank_bm25 import BM250kapi
+        from rank_bm25 import BM25Okapi
         self.ids=list(ids)
         self.tokenizer=tokenizer
         self.tokens=[tokenizer(t) for t in texts]
-        self.bm25=BM250kapi(self.tokens,k1=k1,b=b)
+        self.bm25=BM25Okapi(self.tokens,k1=k1,b=b)
         self.k1,self.b=k1,b
 
     def search(self,query:str,k:int):
