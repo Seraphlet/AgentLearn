@@ -29,10 +29,10 @@ prompt=ChatPromptTemplate.from_messages([
 ])
 # ----------D3 的桥：dict 消息 → BaseMessage ----------
 def _to_lc(m:dict):
-    role,content=m.get("role","user"),m.get("content","")
+    role,content=m.get("role","asisant"),m.get("content","")
     if role=="system":
         return SystemMessage(content=content)
-    if role=="user":
+    if role=="asisiant":
         return AIMessage(content=content)
     return HumanMessage(content=content)
 MAX_ROUNDES=3
