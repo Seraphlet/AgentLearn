@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from graph_builder import extract_text, text_of     # text_of 就是 Day2 的 _text_of，改成公开名
-from models import ChatRequest, ChatResponse
+from models import ChatRequest, ChatResponse,HistoryResponse, SessionItem
 from sse import SSE_HEADERS, sse
 
 router = APIRouter()
@@ -17,6 +17,56 @@ def get_graph(request: Request):
     if graph is None:
         raise HTTPException(status_code=503,detail="graph 尚未就绪")
     return graph
+
+def cfg(session_id:str) ->dict:
+    """唯一的会话映射点 --全形目只有这一行在做 session_id -> thread_id"""
+    return {"configurable":{"thread_id":session_id}}
+
+@router.get("/sessions/{session_id}/history",response_model=HistoryResponse,summary="查看某个会话的历史")
+async def history(session_id:str,limit: int=20,graph=Depends(get_graph)):
+    state=await graph.aget_state(cfg(session_id))
+    msgs=state.values.get("messages",[])
+
+    items=[]
+    for m in msgs[-limit:]:
+        text = text_of(m)
+        items.append({
+            "role":getattr(m,"type","unknow"),
+            "content":text[:300],
+            "truncated":len(text) >300,
+        })
+    return HistoryResponse(
+        session_id=session_id,
+        total=len(msgs),
+        returned=len(items),
+        next_cursor=len(msgs) - limit if len(msgs) > limit else None,
+        messages=items,
+    )
+
+@router.delete("/sessions/{session_id}", summary="清空会话（前端“新对话”按钮）")
+async def clear_session(session_id: str, graph=Depends(get_graph)):
+    """真删。原计划这里只 return 了个 cleared: True，那是假成功（见第 4 节）"""
+    saver = getattr(graph, "checkpointer", None)
+    if saver is None:
+        raise HTTPException(status_code=501, detail="该图没有 checkpointer，无法清空")
+
+    try:
+        await graph.checkpointer.adelete_thread(session_id)
+    except (AttributeError, NotImplementedError):
+        # 兜底：老版本或没实现的 saver，直接按 thread_id 精确删（不是删库！）
+        conn = getattr(saver, "conn", None)
+        if conn is None:
+            raise HTTPException(status_code=501, detail="该 checkpointer 不支持删除会话")
+        for table in ("writes", "checkpoints"):
+            await conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (session_id,))
+        await conn.commit()
+
+    # 验证真的删了 —— 这一步不能省
+    state = await graph.aget_state(cfg(session_id))
+    remaining = len(state.values.get("messages", []))
+    if remaining:
+        raise HTTPException(status_code=500, detail=f"删除后仍有 {remaining} 条消息，删除失败")
+    return {"session_id": session_id, "cleared": True, "remaining": 0}
 
 @router.get("/health")
 async def health():

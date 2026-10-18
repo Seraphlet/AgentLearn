@@ -17,13 +17,20 @@ llm=ChatOpenAI(
 )
 def build_graph(checkpoint=None):
     """和 FastAPI 零耦合：既能被服务调用，也能被脚本/测试调用"""
+    def agent(state:ChatState):
+        message=llm.invoke(state["messages"])
+        print("agent",message.text,"\n")
+        return {"messages":[message]}
     def respond(state: ChatState):
         turns = len(state["messages"])
         text = text_of(state["messages"][-1])
+        print(text)
         return {"messages" : [("ai",f"（第 {turns} 条消息）你说的是：{text}")]}
     g=StateGraph(ChatState)
     g.add_node("respond",respond)
-    g.add_edge(START,"respond")
+    g.add_node("agent",agent)
+    g.add_edge(START,"agent")
+    g.add_edge("agent","respond")
     g.add_edge("respond",END)
     return g.compile(checkpointer=checkpoint)
 

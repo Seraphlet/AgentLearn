@@ -1,4 +1,21 @@
+from email import message
+from re import S
+
 from pydantic import BaseModel, Field
+class MessageItem(BaseModel):
+    role:str
+    content:str
+    truncated: bool=False
+
+class HistoryResponse(BaseModel):
+    session_id:str
+    total: int = Field(description="该会话总消息数")
+    returned: int
+    next_cursor:int | None =Field(default=None,description="还有更早的消息时给偏移量")
+    messages: list[MessageItem]
+class SessionItem(BaseModel):
+    session_id: str
+    turns: int
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4000, description="用户消息")
     session_id: str = Field(
